@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 from streamlit_autorefresh import st_autorefresh
+import requests
 
 st.set_page_config(page_title="Goat Monitoring", layout="wide")
 st.title("🐐 Farm Monitoring Dashboard")
@@ -15,17 +16,44 @@ st_autorefresh(interval=5000, key="refresh")
 # ----------------------------
 # Load data from SQLite
 # ----------------------------
+#try:
+#    conn = sqlite3.connect("goat.db")
+#    df = pd.read_sql_query("SELECT * FROM goat_data", conn)
+#    conn.close()
+#except Exception as e:
+#   st.error(f"DB error: {e}")
+#    st.stop()
+
+#if df.empty:
+#    st.warning("Waiting for data...")
+#    st.stop()
+
+# ----------------------------
+# Load data from Cloud API
+# ----------------------------
+
+
 try:
-    conn = sqlite3.connect("goat.db")
-    df = pd.read_sql_query("SELECT * FROM goat_data", conn)
-    conn.close()
+    url = "https://livestock-monitoring.onrender.com/data"
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        st.error("Failed to fetch data from server")
+        st.stop()
+
+    data = response.json()
+
+    if not data:
+        st.warning("Waiting for data...")
+        st.stop()
+
+    df = pd.DataFrame(data, columns=[
+        "id", "goat_id", "temperature", "movement", "feed", "timestamp"
+    ])
 except Exception as e:
-    st.error(f"DB error: {e}")
+    st.error(f"API error: {e}")
     st.stop()
 
-if df.empty:
-    st.warning("Waiting for data...")
-    st.stop()
 
 # Convert timestamp
 df['timestamp'] = pd.to_datetime(df['timestamp'])
