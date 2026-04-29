@@ -13,6 +13,10 @@ monitor = GoatHealthMonitor(TOKEN, CHAT_ID)
 
 app = Flask(__name__)
 
+@app.route('/')
+def home():
+    return "Livestock Monitoring API is running 🚀"
+
 @app.route('/sensor-data', methods=['POST'])
 def receive_data():
     data = request.json
