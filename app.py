@@ -17,6 +17,18 @@ app = Flask(__name__)
 def home():
     return "Livestock Monitoring API is running 🚀"
 
+@app.route('/data', methods=['GET'])
+def get_data():
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM goat_data")
+    rows = cur.fetchall()
+
+    conn.close()
+
+    return jsonify(rows)
+
 @app.route('/sensor-data', methods=['POST'])
 def receive_data():
     data = request.json

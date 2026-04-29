@@ -2,8 +2,8 @@ import requests
 import random
 import time
 
-URL = "http://localhost:5001/sensor-data"
-
+URL = "https://livestock-monitoring.onrender.com/sensor-data"
+#URL = "http://localhost:5001/sensor-data"
 GOATS = ["goat_1", "goat_2", "goat_3"]
 
 while True:
