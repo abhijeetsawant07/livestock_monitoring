@@ -47,14 +47,18 @@ while True:
 
     time.sleep(5)
 
-@app.route("/")
-def home():
-    return "Simulator running"
-
+# flask server starting
 if __name__ == "__main__":
     import threading
-    threading.Thread(target=run_simulator).start()
-
     import os
+
+    # Start simulator in background
+    thread = threading.Thread(target=run_simulator)
+    thread.daemon = True
+    thread.start()
+
+    # Start Flask server (THIS is critical)
     port = int(os.environ.get("PORT", 10000))
+    print(f"🌐 Starting server on port {port}...")
+
     app.run(host="0.0.0.0", port=port)
