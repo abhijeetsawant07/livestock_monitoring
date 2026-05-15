@@ -1,6 +1,7 @@
 import requests
 import random
 import time
+from flask import Flask
 
 URL = "https://livestock-monitoring.onrender.com/sensor-data"
 #URL = "http://localhost:5001/sensor-data"
@@ -45,3 +46,15 @@ while True:
             print("Error sending data:", str(e))
 
     time.sleep(5)
+
+@app.route("/")
+def home():
+    return "Simulator running"
+
+if __name__ == "__main__":
+    import threading
+    threading.Thread(target=run_simulator).start()
+
+    import os
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
