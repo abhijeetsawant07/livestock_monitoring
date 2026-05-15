@@ -36,7 +36,8 @@ def run_simulator():
                 data = {
                     "goat_id": goat,
                     "temperature": temp,
-                    "movement": movement,
+                    #"movement": movement,
+                    "movement": 0,
                     "feed": feed
                 }
 
