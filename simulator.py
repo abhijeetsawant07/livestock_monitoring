@@ -1,64 +1,65 @@
-import requests
-import random
 import time
+import random
+import requests
+import threading
+import os
 from flask import Flask
+
+app = Flask(__name__)
 
 URL = "https://livestock-monitoring.onrender.com/sensor-data"
 #URL = "http://localhost:5001/sensor-data"
 GOATS = ["goat_1", "goat_2", "goat_3"]
 print("...Simulator started...")
 
-while True:
-    for goat in GOATS:
-        # Simulate different behavior per goat
-        try:
-            # --- Simulate behavior ---
-            if goat == "goat_1":
-                temp = round(random.uniform(38, 39), 2)
-                movement = random.randint(10, 20)
-                feed = random.randint(300, 500)
+def run_simulator():
+    print("Simulator started...")
 
-            elif goat == "goat_2":
-                temp = round(random.uniform(39, 41), 2)
-                movement = random.randint(0, 5)
-                feed = random.randint(100, 200)
+    while True:
+        for goat in GOATS:
+            try:
+                if goat == "goat_1":
+                    temp = round(random.uniform(38, 39), 2)
+                    movement = random.randint(10, 20)
+                    feed = random.randint(300, 500)
 
-            else:  # goat_3
-                temp = round(random.uniform(38, 40), 2)
-                movement = random.randint(5, 15)
-                feed = random.randint(150, 350)
+                elif goat == "goat_2":
+                    temp = round(random.uniform(39, 41), 2)
+                    movement = random.randint(0, 5)
+                    feed = random.randint(100, 200)
 
-            data = {
-                "goat_id": goat,
-                "temperature": temp,
-                "movement": movement,
-                "feed": feed
-            }
+                else:
+                    temp = round(random.uniform(38, 40), 2)
+                    movement = random.randint(5, 15)
+                    feed = random.randint(150, 350)
 
-            response = requests.post(URL, json=data, timeout=5)
+                data = {
+                    "goat_id": goat,
+                    "temperature": temp,
+                    "movement": movement,
+                    "feed": feed
+                }
 
-            if response.status_code == 200:
+                res = requests.post(URL, json=data, timeout=5)
                 print("Data Sent:", data)
-            else:
-                print("Failed:", response.text)
 
-        except Exception as e:
-            print("Error sending data:", str(e))
+            except Exception as e:
+                print("Error:", e)
 
-    time.sleep(5)
+        time.sleep(5)
 
-# flask server starting
+@app.route("/")
+def home():
+    return "MyFirstData.db"
+
 if __name__ == "__main__":
-    import threading
-    import os
-
-    # Start simulator in background
+    # Start simulator thread
     thread = threading.Thread(target=run_simulator)
     thread.daemon = True
     thread.start()
 
-    # Start Flask server (THIS is critical)
+    # Start Flask server (THIS is what Render needs)
     port = int(os.environ.get("PORT", 10000))
-    print(f"🌐 Starting server on port {port}...")
+    print(f"Server starting on port {port}")
 
     app.run(host="0.0.0.0", port=port)
