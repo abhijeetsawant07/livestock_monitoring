@@ -14,25 +14,8 @@ st_autorefresh(interval=5000, key="refresh")
 
 
 # ----------------------------
-# Load data from SQLite
-# ----------------------------
-#try:
-#    conn = sqlite3.connect("goat.db")
-#    df = pd.read_sql_query("SELECT * FROM goat_data", conn)
-#    conn.close()
-#except Exception as e:
-#   st.error(f"DB error: {e}")
-#    st.stop()
-
-#if df.empty:
-#    st.warning("Waiting for data...")
-#    st.stop()
-
-# ----------------------------
 # Load data from Cloud API
 # ----------------------------
-
-
 try:
     url = "https://livestock-monitoring.onrender.com/data"
     response = requests.get(url)
@@ -50,10 +33,10 @@ try:
     df = pd.DataFrame(data, columns=[
         "id", "goat_id", "temperature", "movement", "feed", "timestamp"
     ])
+
 except Exception as e:
     st.error(f"API error: {e}")
     st.stop()
-
 
 # Convert timestamp
 df['timestamp'] = pd.to_datetime(df['timestamp'])
@@ -63,7 +46,7 @@ goat_ids = df['goat_id'].unique()
 
 
 # ----------------------------
-# 🟢 HERD OVERVIEW
+# 🟢 HERD OVERVIEW (UPDATED)
 # ----------------------------
 st.subheader("🐄 Herd Overview")
 
@@ -73,11 +56,19 @@ for i, goat in enumerate(goat_ids):
     goat_df = df[df['goat_id'] == goat].sort_values(by='timestamp')
     latest = goat_df.iloc[-1]
 
-    # Simple health logic
-    if latest['temperature'] > 40 or latest['movement'] < 5 or latest['feed'] < 200:
-        cols[i].error(f"{goat}\n🔴 ALERT")
+    movement = latest['movement']
+
+    if movement < 3:
+        status = "🔴 INACTIVE"
+        cols[i].error(f"{goat}\n{status}")
+
+    elif movement < 8:
+        status = "🟡 LOW ACTIVITY"
+        cols[i].warning(f"{goat}\n{status}")
+
     else:
-        cols[i].success(f"{goat}\n🟢 NORMAL")
+        status = "🟢 NORMAL"
+        cols[i].success(f"{goat}\n{status}")
 
 
 # ----------------------------
@@ -98,9 +89,26 @@ col1.metric("Temperature (°C)", latest['temperature'])
 col2.metric("Movement", latest['movement'])
 col3.metric("Feed Intake", latest['feed'])
 
+# ✅ NEW: Last updated
+st.write(f"🕒 Last updated: {latest['timestamp']}")
 
 # ----------------------------
-# 📈 CHARTS
+# 📌 HEALTH SUMMARY (NEW)
+# ----------------------------
+st.subheader("📌 Health Summary")
+
+if latest['movement'] < 3:
+    st.error("🔴 Goat is inactive. Check immediately.")
+
+elif latest['movement'] < 8:
+    st.warning("🟡 Goat activity is low. Monitor closely.")
+
+else:
+    st.success("🟢 Goat is healthy and active.")
+
+
+# ----------------------------
+# 📈 CHARTS (secondary)
 # ----------------------------
 st.subheader("📈 Trends")
 
