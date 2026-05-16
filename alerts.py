@@ -14,6 +14,9 @@ class GoatHealthMonitor:
         self.goat_status = {}
         self.last_alert_time = {}
 
+        # NEW: sustained movement tracking
+        self.low_movement_counter = defaultdict(int)
+
         self.COOLDOWN = 300
         self.BASELINE_SIZE = 30
 
@@ -48,7 +51,7 @@ class GoatHealthMonitor:
 
     # ----------------------------
     def send_alert(self, alerts, data):
-        message = f"🚨 ALERT for {data['goat_id']}\n"
+        message = f"ALERT for {data['goat_id']}\n"
 
         for alert in alerts:
             message += f"- {alert}\n"
@@ -89,6 +92,14 @@ class GoatHealthMonitor:
         if not temps:
             return
 
+        # ----------------------------
+        # NEW: Sustained low movement tracking
+        # ----------------------------
+        if data['movement'] < 3:
+            self.low_movement_counter[goat_id] += 1
+        else:
+            self.low_movement_counter[goat_id] = 0
+
         # --- 1. Build baseline ---
         if goat_id not in self.baseline and len(self.history[goat_id]) >= self.BASELINE_SIZE:
             self.baseline[goat_id] = {
@@ -96,7 +107,7 @@ class GoatHealthMonitor:
                 "movement": sum(moves) / len(moves),
                 "feed": sum(feeds) / len(feeds)
             }
-            print(f"✅ Baseline set for {goat_id}")
+            print(f"Baseline set for {goat_id}")
 
         # --- 2. Baseline deviation ---
         if goat_id in self.baseline:
@@ -108,12 +119,12 @@ class GoatHealthMonitor:
 
             if temp_change > 0.05 and move_change > 0.4 and feed_change > 0.4:
                 if self.should_send(goat_id, "baseline_illness"):
-                    alerts.append("🚨 Possible illness (baseline deviation)")
+                    alerts.append("Possible illness (baseline deviation)")
 
         # --- 3. High temperature ---
         if data['temperature'] > 40:
             if self.should_send(goat_id, "high_temp"):
-                alerts.append("🔥 High temperature")
+                alerts.append("High temperature")
 
         # --- 4. Combined pattern ---
         if len(temps) >= 20:
@@ -123,7 +134,14 @@ class GoatHealthMonitor:
 
             if recent_temp > 39.5 and recent_move < 5 and recent_feed < 200:
                 if self.should_send(goat_id, "pattern"):
-                    alerts.append("🚨 Possible illness detected")
+                    alerts.append("Possible illness detected")
+
+        # ----------------------------
+        # NEW: Sustained inactivity alert
+        # ----------------------------
+        if self.low_movement_counter[goat_id] > 10:
+            if self.should_send(goat_id, "sustained_low_movement"):
+                alerts.append("Goat inactive for long duration")
 
         # --- 5. Recovery ---
         if goat_id in self.baseline:
@@ -136,7 +154,7 @@ class GoatHealthMonitor:
             if self.goat_status.get(goat_id) in ["ALERT", "CRITICAL"]:
                 if temp_diff < 0.03 and move_diff < 0.2 and feed_diff < 0.2:
                     if self.should_send(goat_id, "recovery"):
-                        alerts.append("✅ Goat recovered")
+                        alerts.append("Goat recovered")
 
         # --- 6. Status update ---
         if alerts:
