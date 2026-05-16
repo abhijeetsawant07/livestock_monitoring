@@ -3,3 +3,4 @@ __pycache__/
 goat.db
 .env
 .DS_Store
+*.db

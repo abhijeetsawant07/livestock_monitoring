@@ -6,6 +6,8 @@ from db import get_conn
 
 class GoatHealthMonitor:
     def __init__(self, token, chat_id):
+        # NEW: reliability tracking
+        self.last_seen = {}
         self.TOKEN = token
         self.CHAT_ID = chat_id
 
@@ -80,6 +82,8 @@ class GoatHealthMonitor:
 
     # ----------------------------
     def update(self, data):
+        # Update last seen time
+        self.last_seen[goat_id] = time.time()
         goat_id = data['goat_id']
         self.history[goat_id].append(data)
 
@@ -170,3 +174,25 @@ class GoatHealthMonitor:
 
         elif goat_id not in self.goat_status:
             self.goat_status[goat_id] = "NORMAL"
+
+        # Check system reliability
+        self.check_reliability()
+
+ # ----------------------------
+    def check_reliability(self):
+    now = time.time()
+
+    for goat_id, last_time in self.last_seen.items():
+        if now - last_time > 30:  # 30 seconds no data
+            if self.should_send(goat_id, "no_data"):
+                alert = ["No data received from goat (possible device/camera issue)"]
+
+                dummy_data = {
+                    "goat_id": goat_id,
+                    "temperature": "N/A",
+                    "movement": "N/A",
+                    "feed": "N/A"
+                }
+
+                self.save_alert(goat_id, alert)
+                self.send_alert(alert, dummy_data)
