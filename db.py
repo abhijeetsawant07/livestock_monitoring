@@ -29,5 +29,20 @@ def init_db():
     )
     """)
 
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS goats (
+        goat_id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        breed TEXT,
+        age INTEGER,
+        weight REAL,
+        gender TEXT,
+        photo_url TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    
+
     conn.commit()
     conn.close()

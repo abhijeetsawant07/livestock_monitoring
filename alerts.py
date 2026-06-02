@@ -180,19 +180,19 @@ class GoatHealthMonitor:
 
  # ----------------------------
     def check_reliability(self):
-    now = time.time()
+        now = time.time()
 
-    for goat_id, last_time in self.last_seen.items():
-        if now - last_time > 30:  # 30 seconds no data
-            if self.should_send(goat_id, "no_data"):
-                alert = ["No data received from goat (possible device/camera issue)"]
+        for goat_id, last_time in self.last_seen.items():
+            if now - last_time > 30:  # 30 seconds no data
+                if self.should_send(goat_id, "no_data"):
+                    alert = ["No data received from goat (possible device/camera issue)"]
 
-                dummy_data = {
-                    "goat_id": goat_id,
-                    "temperature": "N/A",
-                    "movement": "N/A",
-                    "feed": "N/A"
-                }
+                    dummy_data = {
+                        "goat_id": goat_id,
+                        "temperature": "N/A",
+                        "movement": "N/A",
+                        "feed": "N/A"
+                    }
 
-                self.save_alert(goat_id, alert)
-                self.send_alert(alert, dummy_data)
+                    self.save_alert(goat_id, alert)
+                    self.send_alert(alert, dummy_data)

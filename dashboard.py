@@ -1,145 +1,247 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from streamlit_autorefresh import st_autorefresh
 import requests
+from streamlit_autorefresh import st_autorefresh
 
 st.set_page_config(page_title="Goat Monitoring", layout="wide")
+
 st.title("🐐 Farm Monitoring Dashboard")
 
 # ----------------------------
-# Auto refresh every 5 seconds
+# Auto Refresh
 # ----------------------------
 st_autorefresh(interval=5000, key="refresh")
 
+# ----------------------------
+# Navigation
+# ----------------------------
+page = st.sidebar.radio(
+    "Navigation",
+    [
+        "Farm Overview",
+        "Animals",
+        "Alerts"
+    ]
+)
 
 # ----------------------------
-# Load data from Cloud API
+# Load Goat Registry
 # ----------------------------
-try:
-    url = "https://livestock-monitoring.onrender.com/data"
-    response = requests.get(url)
-
-    if response.status_code != 200:
-        st.error("Failed to fetch data from server")
-        st.stop()
-
-    data = response.json()
-
-    if not data:
-        st.warning("Waiting for data...")
-        st.stop()
-
-    df = pd.DataFrame(data, columns=[
-        "id", "goat_id", "temperature", "movement", "feed", "timestamp"
-    ])
-
-except Exception as e:
-    st.error(f"API error: {e}")
-    st.stop()
-
-# Convert timestamp
-df['timestamp'] = pd.to_datetime(df['timestamp'])
-
-# Get goat list
-goat_ids = df['goat_id'].unique()
-
-
-# ----------------------------
-# 🟢 HERD OVERVIEW (UPDATED)
-# ----------------------------
-st.subheader("🐄 Herd Overview")
-
-cols = st.columns(len(goat_ids))
-
-for i, goat in enumerate(goat_ids):
-    goat_df = df[df['goat_id'] == goat].sort_values(by='timestamp')
-    latest = goat_df.iloc[-1]
-
-    movement = latest['movement']
-
-    if movement < 3:
-        status = "🔴 INACTIVE"
-        cols[i].error(f"{goat}\n{status}")
-
-    elif movement < 8:
-        status = "🟡 LOW ACTIVITY"
-        cols[i].warning(f"{goat}\n{status}")
-
-    else:
-        status = "🟢 NORMAL"
-        cols[i].success(f"{goat}\n{status}")
-
-
-# ----------------------------
-# 🔍 GOAT DETAILS
-# ----------------------------
-st.subheader("🔍 Goat Details")
-
-selected_goat = st.selectbox("Select Goat", goat_ids)
-
-filtered_df = df[df['goat_id'] == selected_goat].copy()
-filtered_df = filtered_df.sort_values(by='timestamp')
-
-latest = filtered_df.iloc[-1]
-
-col1, col2, col3 = st.columns(3)
-
-col1.metric("Temperature (°C)", latest['temperature'])
-col2.metric("Movement", latest['movement'])
-col3.metric("Feed Intake", latest['feed'])
-
-# ✅ NEW: Last updated
-st.write(f"🕒 Last updated: {latest['timestamp']}")
-
-# ----------------------------
-# 📌 HEALTH SUMMARY (NEW)
-# ----------------------------
-st.subheader("📌 Health Summary")
-
-if latest['movement'] < 3:
-    st.error("🔴 Goat is inactive. Check immediately.")
-
-elif latest['movement'] < 8:
-    st.warning("🟡 Goat activity is low. Monitor closely.")
-
-else:
-    st.success("🟢 Goat is healthy and active.")
-
-
-# ----------------------------
-# 📈 CHARTS (secondary)
-# ----------------------------
-st.subheader("📈 Trends")
-
-st.line_chart(filtered_df.set_index('timestamp')[['temperature']])
-st.line_chart(filtered_df.set_index('timestamp')[['movement']])
-st.line_chart(filtered_df.set_index('timestamp')[['feed']])
-
-
-# ----------------------------
-# 📄 DATA TABLE
-# ----------------------------
-st.subheader("📄 Recent Data")
-
-st.dataframe(filtered_df.tail(20))
-
-
-# ----------------------------
-# 🚨 ALERT HISTORY
-# ----------------------------
-st.subheader("🚨 Alert History")
-
 try:
     conn = sqlite3.connect("goat.db")
-    alert_df = pd.read_sql_query("SELECT * FROM alerts", conn)
+
+    goats_df = pd.read_sql_query(
+        "SELECT * FROM goats",
+        conn
+    )
+
     conn.close()
 
-    if not alert_df.empty:
-        alert_df['timestamp'] = pd.to_datetime(alert_df['timestamp'])
-        st.dataframe(alert_df.sort_values(by='timestamp', ascending=False).head(20))
-    else:
-        st.info("No alerts yet")
+except Exception:
+    goats_df = pd.DataFrame()
+
+# ----------------------------
+# Load Monitoring Data
+# ----------------------------
+df = pd.DataFrame()
+
+try:
+    url = "https://livestock-monitoring.onrender.com/data"
+
+    response = requests.get(url, timeout=5)
+
+    if response.status_code == 200:
+
+        data = response.json()
+
+        if data:
+            df = pd.DataFrame(
+                data,
+                columns=[
+                    "id",
+                    "goat_id",
+                    "temperature",
+                    "movement",
+                    "feed",
+                    "timestamp"
+                ]
+            )
+
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
 
 except Exception:
-    st.info("No alerts yet")
+    pass
+
+
+# =====================================================
+# FARM OVERVIEW PAGE
+# =====================================================
+if page == "Farm Overview":
+
+    st.header("🐄 Farm Overview")
+
+    if df.empty:
+        st.info("No monitoring data available yet.")
+    else:
+
+        goat_ids = df["goat_id"].unique()
+
+        cols = st.columns(len(goat_ids))
+
+        for i, goat in enumerate(goat_ids):
+
+            goat_df = df[
+                df["goat_id"] == goat
+            ].sort_values(by="timestamp")
+
+            latest = goat_df.iloc[-1]
+
+            movement = latest["movement"]
+
+            if movement < 3:
+                cols[i].error(f"{goat}\n🔴 INACTIVE")
+
+            elif movement < 8:
+                cols[i].warning(f"{goat}\n🟡 LOW ACTIVITY")
+
+            else:
+                cols[i].success(f"{goat}\n🟢 NORMAL")
+
+        st.subheader("📈 Recent Monitoring Data")
+
+        st.dataframe(
+            df.sort_values(
+                by="timestamp",
+                ascending=False
+            ).head(20)
+        )
+
+
+# =====================================================
+# ANIMALS PAGE
+# =====================================================
+elif page == "Animals":
+
+    st.header("🐐 Animal Registry")
+
+    if goats_df.empty:
+        st.warning("No animals registered.")
+    else:
+
+        selected_goat = st.selectbox(
+            "Select Animal",
+            goats_df["goat_id"]
+        )
+
+        goat = goats_df[
+            goats_df["goat_id"] == selected_goat
+        ].iloc[0]
+
+        st.subheader(f"🐐 {goat['name']}")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.write(f"**Breed:** {goat['breed']}")
+            st.write(f"**Age:** {goat['age']} years")
+
+        with col2:
+            st.write(f"**Weight:** {goat['weight']} kg")
+            st.write(f"**Gender:** {goat['gender']}")
+
+        st.divider()
+
+        st.subheader("📊 Current Health Status")
+
+        if not df.empty:
+
+            goat_data = df[
+                df["goat_id"] == selected_goat
+            ]
+
+            if not goat_data.empty:
+
+                latest = goat_data.sort_values(
+                    by="timestamp"
+                ).iloc[-1]
+
+                col1, col2, col3 = st.columns(3)
+
+                col1.metric(
+                    "Temperature",
+                    latest["temperature"]
+                )
+
+                col2.metric(
+                    "Movement",
+                    latest["movement"]
+                )
+
+                col3.metric(
+                    "Feed Intake",
+                    latest["feed"]
+                )
+
+                if latest["movement"] < 3:
+                    st.error(
+                        "🔴 Goat inactive. Check immediately."
+                    )
+
+                elif latest["movement"] < 8:
+                    st.warning(
+                        "🟡 Goat activity is low."
+                    )
+
+                else:
+                    st.success(
+                        "🟢 Goat is healthy and active."
+                    )
+
+            else:
+                st.info(
+                    "No monitoring data available for this animal yet."
+                )
+
+        else:
+            st.info(
+                "Monitoring system not currently sending data."
+            )
+
+
+# =====================================================
+# ALERTS PAGE
+# =====================================================
+elif page == "Alerts":
+
+    st.header("🚨 Alert History")
+
+    try:
+
+        conn = sqlite3.connect("goat.db")
+
+        alert_df = pd.read_sql_query(
+            "SELECT * FROM alerts",
+            conn
+        )
+
+        conn.close()
+
+        if not alert_df.empty:
+
+            alert_df["timestamp"] = pd.to_datetime(
+                alert_df["timestamp"]
+            )
+
+            st.dataframe(
+                alert_df.sort_values(
+                    by="timestamp",
+                    ascending=False
+                )
+            )
+
+        else:
+            st.info("No alerts available.")
+
+    except Exception:
+        st.info("No alerts available.")
