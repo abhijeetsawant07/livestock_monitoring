@@ -42,6 +42,16 @@ def init_db():
     )
     """)
 
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS health_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        goat_id TEXT,
+        event_type TEXT,
+        description TEXT,
+        timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
     
 
     conn.commit()

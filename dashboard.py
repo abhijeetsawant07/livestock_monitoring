@@ -208,7 +208,47 @@ elif page == "Animals":
                 "Monitoring system not currently sending data."
             )
 
+        st.divider()
 
+        st.subheader("📋 Health History")
+
+        try:
+
+            conn = sqlite3.connect("goat.db")
+
+            history_df = pd.read_sql_query(
+                f"""
+                SELECT *
+                FROM health_events
+                WHERE goat_id = '{selected_goat}'
+                ORDER BY timestamp DESC
+                """,
+                conn
+            )
+
+            conn.close()
+
+            if not history_df.empty:
+
+                st.dataframe(
+                    history_df[
+                        [
+                            "timestamp",
+                            "event_type",
+                            "description"
+                        ]
+                    ]
+                )
+
+            else:
+                st.info(
+                    "No health history available."
+                )
+
+        except Exception:
+            st.info(
+                "No health history available."
+            )
 # =====================================================
 # ALERTS PAGE
 # =====================================================

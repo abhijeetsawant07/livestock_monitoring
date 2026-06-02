@@ -82,9 +82,10 @@ class GoatHealthMonitor:
 
     # ----------------------------
     def update(self, data):
+        goat_id = data['goat_id']
+
         # Update last seen time
         self.last_seen[goat_id] = time.time()
-        goat_id = data['goat_id']
         self.history[goat_id].append(data)
 
         alerts = []
@@ -164,21 +165,36 @@ class GoatHealthMonitor:
         if alerts:
             if any("recovered" in a.lower() for a in alerts):
                 self.goat_status[goat_id] = "RECOVERED"
+
             elif any("illness" in a.lower() for a in alerts):
                 self.goat_status[goat_id] = "CRITICAL"
+
             else:
                 self.goat_status[goat_id] = "ALERT"
 
             self.save_alert(goat_id, alerts)
+
+            # Save into health history
+            for alert in alerts:
+
+                event_type = "alert"
+
+                if "recovered" in alert.lower():
+                    event_type = "recovery"
+
+                self.add_health_event(
+                    goat_id,
+                    event_type,
+                    alert
+                )
+
             self.send_alert(alerts, data)
 
         elif goat_id not in self.goat_status:
-            self.goat_status[goat_id] = "NORMAL"
+            self.goat_status[goat_id] = "NORMAL"        # Check system reliability
+            self.check_reliability()
 
-        # Check system reliability
-        self.check_reliability()
-
- # ----------------------------
+    # ----------------------------
     def check_reliability(self):
         now = time.time()
 
@@ -196,3 +212,31 @@ class GoatHealthMonitor:
 
                     self.save_alert(goat_id, alert)
                     self.send_alert(alert, dummy_data)
+
+    #------------------------------------
+    def add_health_event(
+        self,
+        goat_id,
+        event_type,
+        description
+    ):
+        from db import get_conn
+
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+        INSERT INTO health_events (
+            goat_id,
+            event_type,
+            description
+        )
+        VALUES (?, ?, ?)
+        """, (
+            goat_id,
+            event_type,
+            description
+        ))
+
+        conn.commit()
+        conn.close()
